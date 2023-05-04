@@ -1,0 +1,479 @@
+% (c) Danilo Tardioli
+%
+%% This program can be redistributed and/or modified under the terms
+%% of the LaTeX Project Public License Distributed from CTAN archives
+%% in directory macros/latex/base/lppl.txt.
+% 
+\NeedsTeXFormat{LaTeX2e}[1994/06/01]
+\ProvidesPackage{sau}
+[2011/01/11 v0.01 LaTeX package for automatically grading exams]
+
+\RequirePackage{amsmath}
+\RequirePackage{anysize}
+\RequirePackage{balance}
+\RequirePackage{bm}
+\RequirePackage{color}
+\RequirePackage{circuitikz}
+\RequirePackage{datatool}
+\RequirePackage{enumerate}
+\RequirePackage{eso-pic, rotating, graphicx}
+\RequirePackage{etoolbox}
+\RequirePackage[export]{adjustbox}
+\RequirePackage{fancyhdr}
+\RequirePackage[point]{fltpoint}
+\RequirePackage{fmtcount}% http://ctan.org/pkg/fmtcount
+\RequirePackage{graphicx}
+\RequirePackage{keycommand}
+\RequirePackage{mwe}
+\RequirePackage{pgffor}
+\RequirePackage{pgfplots}
+\RequirePackage{siunitx}
+\RequirePackage{storebox}
+\RequirePackage{subfigure}
+\RequirePackage{tabularx}
+\RequirePackage{tabulary}
+\RequirePackage{tikz}
+\RequirePackage{times}
+\RequirePackage{totcount}
+\RequirePackage{url}
+\RequirePackage{verbatim}
+\RequirePackage{wrapfig}
+\RequirePackage{xargs}
+\RequirePackage{xparse}
+\RequirePackage{xstring}
+\RequirePackage{amssymb}
+\RequirePackage{geometry}
+
+
+%% definicion del formato de página (margenes, encabezados, pie de página...)
+\def\hi{This is the sau package}
+\let\myDate\date
+
+\newcommand{\Lap}{\mathcal{L}}
+
+\newcommand{\scoreX}{6}
+\newcommand{\scoreH}{5}
+\newcommand{\scoreM}{4}
+\newcommand{\scoreL}{2}
+
+\newcommand{\maxpoints}{8}
+\newcommand{\decimales}{3}
+\newtotcounter{pts}
+\DeclareRobustCommand{\scoring}[1]{
+	\addtocounter{pts}{#1}
+	\fpAccuracy{8}
+	%
+	% Nota ok
+	\fpMul{\Qokpre}{#1}{\maxpoints}
+	\fpAccuracy{\decimales}
+	\fpDiv{\Qok}{\Qokpre}{\totvalue{pts}}
+	%
+	% Nota mal
+	\fpMul{\Qerr1}{#1}{\maxpoints}
+	\fpAccuracy{8}
+	\fpDiv{\Qerr2}{\Qerr1}{4}
+	\fpAccuracy{\decimales}
+	\fpDiv{\Qerr}{\Qerr2}{\totvalue{pts}}
+	\textbf{(+\Qok$\vert$-\Qerr})}
+	%
+	\newcommand{\feedbackG}[1]{\begin{center}
+	\begin{tikzpicture}[node distance=4em]
+	\node[input](R){};
+	\node[sum,right of=R](sum1){};
+	\node[block,right of=sum1](K){$K$};
+	\node[block,right of=K,xshift=5em](G){#1};
+	\draw[->](R) -- node[very near end, above]{$+$}(sum1);
+	\draw[->](sum1) -- (K);
+	\draw[->](K) -- (G);
+	\draw[->](G) -- ++(10em,0);
+	\draw[->](G) -| ++(7em,-3em) -| node[very near end,left]{$-$}(sum1);
+	\end{tikzpicture}
+	\end{center}
+}
+
+
+\newcommand{\sausetpagestyle}{
+\setlength{\columnsep}{2cm}
+
+\fancyhf{}
+
+\setlength{\textwidth}{19cm}
+\setlength{\textheight}{24.5cm}
+\setlength{\oddsidemargin}{-1.5cm}
+\setlength{\evensidemargin}{-1.5cm}
+\setlength{\topmargin}{-2cm}
+%\setlength{\footskip}{1.5cm}
+\setlength\headheight{1.8cm}
+%\setlength{\footheight}{4cm}
+\pagenumbering{arabic}
+
+\fancyhead[L]{\includegraphics[height=1.5cm,keepaspectratio]{images/cud.jpg}}
+\fancyhead[C]{Sistemas Automáticos}
+\fancyhead[R]{\uniqueid\uniqueqr}
+\fancyfoot[C]{\thepage}
+\fancyfoot[L]{\uniqueqrQ}
+
+\renewcommand{\footrulewidth}{0.4pt}
+\pagestyle{fancy}
+}
+
+\newcommand{\sauinfoshort}[2]{
+    {\raggedright 
+        {
+        \LARGE 
+        \textbf{Examen de Sistemas Automáticos}\\
+        \vspace{2mm}
+        \textbf{#1 del #2}\\
+        }
+    }
+}
+
+\newcommand{\sauinfo}[2]{
+    {\raggedright 
+        {
+        \LARGE 
+        \textbf{Examen de Sistemas Automáticos}\\
+        \vspace{2mm}
+        \textbf{#1 del #2}\\
+        }
+        {\Large\vspace{3mm}
+        \textbf{Nombre y apellidos:}\\
+        \vspace{3mm}
+        \textbf{Sección:}\\
+        \vspace{3mm}
+        \begin{tabular}{ccc}
+        \textbf{NIA:}&
+        {\setlength{\fboxsep}{11pt}
+        \setlength{\tabcolsep}{3pt}
+        \begin{tabular}{cccccc}
+                 \framebox[8mm][l]{~} & \framebox[8mm][l]{~} &
+                 \framebox[8mm][l]{~} & \framebox[8mm][l]{~} &
+                 \framebox[8mm][l]{~} & \framebox[8mm][l]{~} 
+        \end{tabular}
+        }&
+        \nialocationqr
+        \end{tabular}
+            
+        }
+    }
+}
+
+
+\newcommand{\inittikz}{
+\usetikzlibrary{shapes,arrows,babel} % BABEL SOLVES PROBLEMS WITH ARROWS!!!
+\tikzstyle{block}       = [draw, fill=white, rectangle, minimum height=2.5em, minimum width=3em]
+\tikzstyle{input}       = [coordinate]
+\tikzstyle{branch}      = [coordinate]
+\tikzstyle{output}      = [coordinate]
+\tikzstyle{sum}         = [draw, fill=white, circle]
+\tikzstyle{pinstyle}    = [pin edge={to-,thin,black}]
+}
+
+% macros to draw poles and zeroes in tikz
+\newenvironment{polosceros}[2]
+    {\begin{tikzpicture}[scale=#1,baseline=#2]}
+    {\end{tikzpicture}}
+    
+\newcommand\pole[2]{\draw (#2) +(#1,#1)--+(-#1,-#1)  +(-#1,#1)--+(#1,-#1)}
+\newcommand\zero[2]{\draw (#2) circle(#1)}
+\newcommand\ejes[3]{\draw (#1,0)--(#2,0);\draw (0, -#3)--(0,#3)}
+
+\newcommand{\heaven}{%
+\begin{center}
+\begin{tikzpicture}[node distance=5em]
+\node[input](R){};
+\node[sum,right of=R](sum){};
+\node[block,below of=sum,right of=sum,xshift=-1em,yshift=2em](H){$RCs+1$};
+\node[block,right of=sum,xshift=6em](K){$K$};
+\node[output,right of=K](Y){};
+\draw[->](R)node[near start,above]{$V_r(s)$}--node[very near end,above]{$+$}(sum);
+\draw[->](sum)--(K);
+\draw[->](K) -| ++(-3em,-1em) |- (H);
+\draw[->](H) -| node[at end,left,yshift=-0.2em]{$-$} (sum);
+\draw[->](K) -- node[near end,above]{$V_c(s)$} (Y);
+\end{tikzpicture}
+\end{center}%
+}
+
+\newcommand{\heavenresp}{%
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+        width=10cm,
+        height=5cm,
+        axis lines=middle,
+        xmin=0, xmax=9,
+        ymin=0, ymax=2.4,
+        xlabel=$t$,
+        ylabel={$V_c(t)$},
+        xlabel style={at=(current axis.right of origin), anchor=west},
+        ylabel style={at=(current axis.above origin), anchor=south},
+        xtick={0, 2, 8},
+        xticklabels={$0$, $2$, $8$},
+        every x tick/.style={black},
+        ytick={0, 1.26, 1.96, 2},
+        yticklabels={$0$, $1.26$, $ $, $2$},
+        every y tick/.style={black}
+    ]
+    %
+    \addplot[smooth, 
+             black,
+             thick,
+             mark=none,
+             domain=0:10,
+             samples=100]
+    {2*(1-exp(-x/2))};
+    % Final value
+    \addplot[black, densely dotted] coordinates{(0,2)} -- (axis cs:9,2);
+    % 98%
+    \draw [densely dotted] (axis cs:0,1.96) -- (axis cs:8,1.96) -- (axis cs:8,0);
+    % 98% label prep
+    \coordinate(Ts) at (axis cs:0,1.96);
+    % 63%
+    \draw [densely dotted] (axis cs:0,1.26) -- (axis cs:2,1.26) -- (axis cs:2,0);
+\end{axis}
+\draw [densely dotted] (Ts) -- node[at end,xshift=-3mm,yshift=-2mm]{$1.96$} ++(-2mm,-2mm);
+\end{tikzpicture}
+\end{center}
+}
+
+
+\newcommand{\electrofun}{%
+\begin{center}
+\begin{circuitikz}[american voltages,scale=0.8,transform shape]
+% malla
+\draw (0,3) to [V,l_=$V_r(t)$] (0, 0);
+\draw (0,3) to [R, l_=$R$] (3, 3) to [lamp] (3, 0) to [short] (0,0);
+% eje
+\draw (3,1.5) to [transmission line, l_=$J$](6, 1.5) to [short] (8, 1.5);
+\draw (7, 1.5) to [R, l=$K$] (7, 0) to node[cground]{}(7, 0);
+% B
+\draw (5.5,1.6) -- (6.5,1.6);
+\draw (6,1.6) -- node[right]{$B$}(6, 3);
+% Omega
+\draw[->,bend left=60] (8,2) to node[right] {$\theta(t)$} (8,1);
+\end{circuitikz}
+\end{center}%
+}
+
+
+\newcommand{\infierno}{%
+\begin{center}
+\begin{tikzpicture}[node distance=5em]
+\node[input](R){};
+\node[block,right of=R](F){$F(s)$};
+\node[sum,right of=F](sumtop){};
+\node[block,right of=sumtop](G){$G(s)$};
+\node[output,right of=G](Y){};
+\node[block,below of=sumtop,yshift=1em](H){$H(s)$};
+\node[sum,below of=H,yshift=1em](sumbottom){};
+\node[block,left of=sumbottom](J){$J(s)$};
+\node[block,right of=sumbottom](K){$K(s)$};
+\draw[->](R)node[near start,above]{$R(s)$}--(F);
+\draw[->](F)--node[near end,above]{$+$}(sumtop);
+\draw[->](sumtop)--(G);
+\draw[->](G)--node[near end,above]{$Y(s)$}(Y);
+\draw[->](G) -| ++(3em, -1em) |- (K);
+\draw[->](K)--node[near end,above]{$-$}(sumbottom);
+\draw[->](sumbottom)--(H);
+\draw[->](H)--node[near end,left]{$+$}(sumtop);
+\draw[->](J)--node[near end,above]{$+$}(sumbottom);
+\draw[->](F) -| ++(-3em, -1em) |- (J);
+\end{tikzpicture}
+\end{center}%
+}
+
+
+\newkeycommand{\bode}[yscale=0.08, xscale=4.3, wmin=-1, wmax=3,ymax=40, ymin=-40, ystep=20]{
+ \begin{center}
+    \begin{tikzpicture}[yscale=\commandkey{yscale},xscale=\commandkey{xscale}]
+        \tikzset{
+            semilog lines/.style={thin, black},
+            semilog lines 2/.style={semilog lines,dashed,black },
+            semilog half lines/.style={semilog lines 2,white },
+            semilog label x/.style={semilog lines,below,font=\normalsize},
+            semilog label y/.style={semilog lines,right,font=\normalsize}
+        }
+        \OrdBode{\commandkey{ystep}}
+        %\UnitedB
+        \semilog*{\commandkey{wmin}}{\commandkey{wmax}}{\commandkey{ymin}}{\commandkey{ymax}}
+        \end{tikzpicture}
+        \end{center}
+}
+
+\newkeycommand{\secondorder}[xtick=1,
+                          ytick=1,
+                          width=10cm,
+                          heigth=7cm,
+                          showTp=yes,
+                          showTs=no,
+                          showMu=yes,
+                          showSo][5]{% Params: R, z, w_n, t_max, y_max
+\begin{center}
+\begin{tikzpicture}
+    \begin{axis}[
+            width=\commandkey{width},
+            height=\commandkey{heigth},
+            axis lines=middle,
+            xmin=0, xmax=#4*1.1,
+            ymin=0, ymax=#5*1.1,
+            xlabel=$t$,
+            ylabel={$y(t)$},
+            xlabel style={at=(current axis.right of origin), anchor=west},
+            ylabel style={at=(current axis.above origin), anchor=south},
+%            xtick={0, \commandkey{xtick}, ..., #4},
+            %ytick={0, \commandkey{ytick}, ..., #5},
+            ytick=\commandkey{ytick},
+            xtick=\commandkey{xtick},
+            every x tick/.style={black},
+            every y tick/.style={black}
+        ]
+        %
+        \addplot[smooth, 
+                 black,
+                 thick,
+                 mark=none,
+                 domain=0:#4,
+                 samples=100]
+        %{#1 - ((#1*exp(-#2*#3*x))/sqrt(1-#2*#2))*cos(180*#3*sqrt(1-#2*#2)*x/pi+\commandkey{theta})};
+        {exp(-x*#3*#2)*(-(#1*#2*sin(deg(x*#3*sqrt(1-#2*#2))))/sqrt(1-#2*#2)-#1*cos(deg(x*#3*sqrt(1-#2*#2))))+#1};
+        % Final value
+        \ifnum\pdfstrcmp{\commandkey{showMu}}{yes}=0
+            \addplot[black, densely dotted] coordinates{(0,#1)} -- (axis cs:#4,#1);
+        \fi
+        \ifnum\pdfstrcmp{\commandkey{showTp}}{yes}=0
+            \addplot[black, densely dotted] coordinates{
+                (pi/(#3*sqrt(1-(#2*#2)),0) (pi/(#3*sqrt(1-(#2*#2)),{    (1+(exp(-pi*#2/sqrt(1-(#2*#2)))))*#1   })} ;
+        \fi
+        \ifnum\pdfstrcmp{\commandkey{showTs}}{yes}=0
+            \addplot[black, densely dotted] coordinates{
+                (4/#2/#3,#1) (4/#2/#3,0)
+            };
+        \fi
+        \ifnum\pdfstrcmp{\commandkey{showSo}}{yes}=0
+            \addplot[black, densely dotted] coordinates{
+                (0,{    (1+(exp(-pi*#2/sqrt(1-(#2*#2)))))*#1   }) (pi/(#3*sqrt(1-(#2*#2)),{    (1+(exp(-pi*#2/sqrt(1-(#2*#2)))))*#1   })
+            };
+        \fi
+    \end{axis}
+\end{tikzpicture}
+\end{center}
+\vspace{-8mm}
+}
+
+
+\newcommand{\gridrlocus}[5]{ % width xmin xmax ymin ymax
+    \begin{center}
+        \begin{tikzpicture}
+            \begin{axis}[
+              width=#1,
+              axis equal=true,
+              axis lines=middle,
+              grid,
+              ymin=#4,
+              ymax=#5,
+              xmin=#2,
+              xmax=#3,
+              ]
+            \addplot[draw=none] coordinates {(#2,#4)};
+            \end{axis}
+        \end{tikzpicture}
+    \end{center}
+}
+
+
+\newcommand{\getnia}[2]{
+\setlength{\extrarowheight}{4mm}
+\subsection*{Tache los códigos QR correspondientes a su NIA}
+\begin{center}
+%{\fontfamily{qcr}\selectfont
+\begin{tabular}{ c c c c c c c c c c c}
+& 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 0\\
+Cifra 1 del NIA &
+%\framebox{\matcode{N#200} 
+&
+%\framebox{\matcode{N#201} 
+&
+%\framebox{\matcode{N#202} 
+&
+%\framebox{\matcode{N#203} 
+&
+%\framebox{\matcode{N#204} &
+\framebox{\matcode{N#205}} &
+\framebox{\matcode{N#206}} &
+\framebox{\matcode{N#207}} &
+\framebox{\matcode{N#208}} &
+\framebox{\matcode{N#209}} 
+\\[5pt] 
+
+Cifra 2 del NIA  &
+\framebox{\matcode{N#211}} &
+\framebox{\matcode{N#212}} &
+\framebox{\matcode{N#213}} &
+\framebox{\matcode{N#214}} &
+\framebox{\matcode{N#215}} &
+\framebox{\matcode{N#216}} &
+\framebox{\matcode{N#217}} &
+\framebox{\matcode{N#218}} &
+\framebox{\matcode{N#219}} &
+\framebox{\matcode{N#210}}\\[5pt]
+
+
+Cifra 3 del NIA  &
+
+\framebox{\matcode{N#221}} &
+\framebox{\matcode{N#222}} &
+\framebox{\matcode{N#223}} &
+\framebox{\matcode{N#224}} &
+\framebox{\matcode{N#225}} &
+\framebox{\matcode{N#226}} &
+\framebox{\matcode{N#227}} &
+\framebox{\matcode{N#228}} &
+\framebox{\matcode{N#229}} &
+\framebox{\matcode{N#220}}\\[5pt]
+
+
+Cifra 4 del NIA  &
+\framebox{\matcode{N#231}} &
+\framebox{\matcode{N#232}} &
+\framebox{\matcode{N#233}} &
+\framebox{\matcode{N#234}} &
+\framebox{\matcode{N#235}} &
+\framebox{\matcode{N#236}} &
+\framebox{\matcode{N#237}} &
+\framebox{\matcode{N#238}} &
+\framebox{\matcode{N#239}} &
+\framebox{\matcode{N#230}}\\[5pt]
+
+Cifra 5 del NIA  &
+\framebox{\matcode{N#241}} &
+\framebox{\matcode{N#242}} &
+\framebox{\matcode{N#243}} &
+\framebox{\matcode{N#244}} &
+\framebox{\matcode{N#245}} &
+\framebox{\matcode{N#246}} &
+\framebox{\matcode{N#247}} &
+\framebox{\matcode{N#248}} &
+\framebox{\matcode{N#249}} &
+\framebox{\matcode{N#240}}\\[5pt]
+
+
+Cifra 6 del NIA  &
+\framebox{\matcode{N#251}} &
+\framebox{\matcode{N#252}} &
+\framebox{\matcode{N#253}} &
+\framebox{\matcode{N#254}} &
+\framebox{\matcode{N#255}} &
+\framebox{\matcode{N#256}} &
+\framebox{\matcode{N#257}} &
+\framebox{\matcode{N#258}} &
+\framebox{\matcode{N#259}} &
+\framebox{\matcode{N#250}}\\[5pt]
+\end{tabular}
+%}
+\end{center}
+}
+
+\endinput
+%%
+%% End of file `sau.sty'.

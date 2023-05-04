@@ -1,0 +1,7 @@
+opencv-python
+pandas
+pymupdf
+pyqt5
+pyyaml
+pyzbar
+zxing-cpp
